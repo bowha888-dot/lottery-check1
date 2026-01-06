@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 年度摸彩 - 中獎查詢系統</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: "PingFang TC", sans-serif; background: #f0f2f5; text-align: center; }
+        .container { max-width: 450px; margin: 40px auto; background: white; padding: 30px; border-radius: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+        h1 { color: #d63031; margin-bottom: 5px; }
+        .status { font-size: 12px; color: #999; margin-bottom: 20px; }
+        input { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; margin-bottom: 15px; text-align: center; outline: none; transition: 0.3s; }
+        input:focus { border-color: #d63031; }
+        button { width: 100%; padding: 15px; font-size: 18px; background: #d63031; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; }
+        #result { margin-top: 25px; padding: 20px; border-radius: 15px; display: none; line-height: 1.8; }
+        .win { background: #fff9db; border: 1px solid #fab005; color: #856404; }
+        .lose { background: #fff5f5; border: 1px solid #ffc9c9; color: #c92a2a; }
+        .prize-tag { font-size: 28px; font-weight: 900; display: block; margin-top: 10px; color: #e67e22; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>中獎查詢</h1>
+    <div class="status" id="loadStatus">正在連線至同步名單...</div>
+    
+    <input type="text" id="userInput" placeholder="輸入「姓名」或「工號」">
+    <button onclick="checkWin()">搜尋我的獎項</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    let csvData = [];
+
+    // ✅ 自動抓取同資料夾下的 result.csv
+    async function fetchCSV() {
+        try {
+            const response = await fetch('result.csv?t=' + new Date().getTime()); // 加時間戳防止快取
+            const text = await response.text();
+            // 解析 CSV (處理引號與逗號)
+            csvData = text.split('\n').filter(line => line.trim()).map(line => {
+                return line.split(',').map(cell => cell.replace(/"/g, ''));
+            });
+            document.getElementById('loadStatus').textContent = "● 名單已更新至最新狀態";
+            document.getElementById('loadStatus').style.color = "#40c057";
+        } catch (err) {
+            document.getElementById('loadStatus').textContent = "○ 目前無可用名單，請稍後再試";
+        }
+    }
+
+    function checkWin() {
+        const input = document.getElementById('userInput').value.trim().toLowerCase();
+        const resultDiv = document.getElementById('result');
+        if (!input) return;
+
+        // 搜尋：DATA 格式 ["獎項", "部門", "姓名", "工號", "狀態"]
+        // 注意：CSV 第一行通常是標題，find 會自動跳過不匹配的
+        const found = csvData.find(item => 
+            (item[2] && item[2].toLowerCase() === input) || 
+            (item[3] && item[3].toLowerCase() === input)
+        );
+
+        resultDiv.style.display = "block";
+        if (found) {
+            if (found[4] && found[4].includes("剔除")) {
+                resultDiv.className = "lose";
+                resultDiv.innerHTML = `查無得獎資訊。<br><small>註：您曾被抽中但不在現場，名額已遞補。</small>`;
+            } else {
+                resultDiv.className = "win";
+                resultDiv.innerHTML = `恭喜 <strong>${found[2]}</strong> 中獎！<br><span class="prize-tag">${found[0]}</span>`;
+            }
+        } else {
+            resultDiv.className = "lose";
+            resultDiv.innerHTML = "很抱歉，目前名單中查無您的中獎資訊。";
+        }
+    }
+
+    // 頁面開啟就載入
+    fetchCSV();
+</script>
+
+</body>
+</html>
